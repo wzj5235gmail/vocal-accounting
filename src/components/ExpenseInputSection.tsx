@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { Button, TextInput, Select, Label, Card, Alert, Spinner } from 'flowbite-react';
 import { Expense, ExpenseCategory } from "@/types/expense";
 import { analyzeExpenseText } from "@/services/openai";
 import { transcribeAudio } from "@/services/whisper";
@@ -9,7 +10,10 @@ import { getUserCategories } from "@/services/categories";
 import { getUserSettings } from "@/services/settings";
 
 interface ExpenseInputSectionProps {
-  onAddExpense: (expense: Expense) => void;
+  onAddExpense: (expense: Expense) => Promise<void>;
+  onAudioProcessed?: (blob: Blob, text: string) => Promise<void>;
+  isProcessing?: boolean;
+  processingStatus?: string | null;
 }
 
 // 添加 SpeechRecognition 类型声明
@@ -22,12 +26,19 @@ declare global {
 
 export default function ExpenseInputSection({
   onAddExpense,
+  onAudioProcessed,
+  isProcessing = false,
+  processingStatus = null
 }: ExpenseInputSectionProps) {
-  const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { showToast } = useToast();
 
+  // 表单状态
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("CNY");
   const [category, setCategory] = useState<ExpenseCategory>("其他");
@@ -35,13 +46,6 @@ export default function ExpenseInputSection({
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   const recognitionRef = useRef<any>(null);
-
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-
-  const { showToast } = useToast();
-  const [processingStatus, setProcessingStatus] = useState<string | null>(null);
 
   // 初始化语音识别
   useEffect(() => {
@@ -64,12 +68,13 @@ export default function ExpenseInputSection({
 
       recognitionRef.current.onerror = (event: any) => {
         console.error("语音识别错误:", event.error);
-        setIsListening(false);
+        setIsRecording(false);
+        setTranscript(null);
         setError(`语音识别错误: ${event.error}`);
       };
 
       recognitionRef.current.onend = () => {
-        setIsListening(false);
+        setIsRecording(false);
       };
     } else {
       setError("您的浏览器不支持语音识别功能");
@@ -85,13 +90,13 @@ export default function ExpenseInputSection({
   // 语音识别开关
   const toggleListening = () => {
     setError(null);
-    if (isListening) {
+    if (isRecording) {
       recognitionRef.current?.stop();
-      setIsListening(false);
+      setIsRecording(false);
     } else {
       try {
         recognitionRef.current?.start();
-        setIsListening(true);
+        setIsRecording(true);
       } catch (err) {
         console.error("启动语音识别失败:", err);
         setError("启动语音识别失败，请刷新页面重试");
@@ -117,16 +122,11 @@ export default function ExpenseInputSection({
     return { mimeType: "", ext: "webm" }; // 默认格式
   };
 
-  // 添加录音功能
+  // 开始录音
   const startRecording = async () => {
-    setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const { mimeType, ext } = getSupportedMimeType();
-
-      const options = mimeType ? { mimeType } : undefined;
-      const mediaRecorder = new MediaRecorder(stream, options);
-
+      const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -137,40 +137,54 @@ export default function ExpenseInputSection({
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current);
-        setIsRecording(false);
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+        setTranscript(null); // 清除之前的转录结果
 
-        // 自动转录
         try {
-          setIsProcessing(true);
-          setProcessingStatus("正在转录录音...");
+          // 转录音频
+          const text = await transcribeAudio(audioBlob, "webm");
+          setTranscript(text);
+          showToast("录音转录完成", "success");
 
-          const transcription = await transcribeAudio(audioBlob, ext);
-          setTranscript(transcription);
-
-          // 自动处理文本
-          await handleProcessTranscript(transcription);
-        } catch (error) {
-          console.error("转录失败:", error);
-          showToast("录音转录失败，请重试", "error");
-          setIsProcessing(false);
+          // 调用父组件的处理函数
+          if (onAudioProcessed) {
+            await onAudioProcessed(audioBlob, text);
+          }
+        } catch (error: any) {
+          console.error("处理录音失败:", error);
+          showToast(error.message || "处理录音失败", "error");
         }
+
+        // 关闭音轨
+        stream.getTracks().forEach(track => track.stop());
       };
 
-      // 设置较短的时间间隔来获取数据
-      mediaRecorder.start(100);
+      mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      console.error("录音失败:", err);
-      setError("录音失败，请重试");
+      console.error("无法访问麦克风:", err);
+      showToast("无法访问麦克风，请确保已授予权限", "error");
     }
   };
 
+  // 停止录音
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
+      setIsRecording(false);
     }
   };
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
 
   const handleTranscribe = async (blob: Blob) => {
     setIsProcessing(true);
@@ -303,30 +317,24 @@ export default function ExpenseInputSection({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-          记录新支出
-        </h2>
+      <Card>
+        <h2 className="text-xl font-semibold">记录新支出</h2>
 
-        {error && (
-          <div className="p-3 bg-red-100 text-red-700 rounded-md">{error}</div>
-        )}
-
-        <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <div className="flex items-center mb-4">
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`flex items-center justify-center w-12 h-12 rounded-full ${
-                isRecording
-                  ? "bg-red-500 hover:bg-red-600"
-                  : "bg-blue-500 hover:bg-blue-600"
-              } text-white transition-colors`}
-              aria-label={isRecording ? "停止录音" : "开始录音"}
-            >
+        <div className="flex flex-col items-center justify-center">
+          <Button
+            onMouseDown={startRecording}
+            onMouseUp={stopRecording}
+            onTouchStart={startRecording}
+            onTouchEnd={stopRecording}
+            disabled={isProcessing}
+            color={isRecording ? "failure" : "primary"}
+            size="xl"
+            className="w-24 h-24 rounded-full"
+          >
+            <div className="text-center">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
+                className="h-8 w-8 mx-auto"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -334,141 +342,131 @@ export default function ExpenseInputSection({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                <line x1="12" y1="19" x2="12" y2="23"></line>
-                <line x1="8" y1="23" x2="16" y2="23"></line>
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
               </svg>
-            </button>
-            <div className="ml-4">
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {isRecording ? "正在录音..." : "点击按钮开始录音"}
+              <span className="block mt-1 text-sm">
+                {isRecording ? "松开" : isProcessing ? "处理中" : "按住"}
+              </span>
+            </div>
+          </Button>
+
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400 text-center">
+            {isRecording ? (
+              <span className="flex items-center justify-center">
+                <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse" />
+                正在录音...
+              </span>
+            ) : (
+              `按住按钮说出支出，例如："买咖啡35元"`
+            )}
+          </p>
+        </div>
+      </Card>
+
+      {processingStatus && (
+        <Alert color="info">
+          <Spinner size="sm" className="mr-2" />
+          {processingStatus}
+        </Alert>
+      )}
+
+      {(audioUrl || transcript) && !isProcessing && (
+        <Card>
+          {audioUrl && (
+            <div className="flex items-center justify-between">
+              <Label>录音回放：</Label>
+              <audio
+                ref={audioRef}
+                src={audioUrl}
+                controls
+                className="w-48 h-8"
+              />
+            </div>
+          )}
+
+          {transcript && (
+            <div className="space-y-2">
+              <Label>转录结果：</Label>
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                {transcript}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                例如: "今天在星巴克花了35元买咖啡"
-              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div className="mb-2">
+              <Label htmlFor="amount">金额</Label>
+            </div>
+            <div className="flex">
+              <Select
+                id="currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="rounded-r-none"
+              >
+                <option value="CNY">¥</option>
+                <option value="USD">$</option>
+                <option value="EUR">€</option>
+              </Select>
+              <TextInput
+                id="amount"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="rounded-l-none flex-1"
+              />
             </div>
           </div>
 
-          <textarea
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-white"
-            rows={3}
-            placeholder="语音内容将显示在这里，您也可以直接输入..."
-          />
-
-          <div className="mt-2 flex justify-end space-x-2">
-            <button
-              onClick={() => setTranscript("")}
-              className="px-3 py-1 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-            >
-              清除
-            </button>
-            <button
-              onClick={() => handleProcessTranscript()}
-              disabled={isProcessing || !transcript.trim()}
-              className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isProcessing ? "处理中..." : "分析文本"}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            金额
-          </label>
-          <div className="flex">
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="rounded-l-md border border-r-0 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-3"
-            >
-              <option value="CNY">¥</option>
-              <option value="USD">$</option>
-              <option value="EUR">€</option>
-            </select>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="flex-1 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
-              placeholder="0.00"
-              step="0.01"
-              min="0"
+          <div>
+            <div className="mb-2">
+              <Label htmlFor="date">日期</Label>
+            </div>
+            <TextInput
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            日期
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
+          <Label>分类</Label>
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {categories.map((cat) => (
+              <Button
+                key={cat}
+                color={category === cat ? "primary" : "gray"}
+                onClick={() => setCategory(cat)}
+              >
+                {cat}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2">
+            <Label htmlFor="description">备注</Label>
+          </div>
+          <TextInput
+            id="description"
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="添加备注..."
           />
         </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          分类
-        </label>
-        <div className="grid grid-cols-3 gap-2">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setCategory(cat)}
-              className={`py-2 px-3 rounded-md text-sm ${
-                category === cat
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100 border-2 border-blue-500"
-                  : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          备注
-        </label>
-        <input
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
-          placeholder="添加备注..."
-        />
-      </div>
-
-      <div className="pt-4">
-        <button
-          onClick={handleSaveExpense}
-          disabled={!amount || isNaN(Number(amount))}
-          className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          保存记录
-        </button>
-      </div>
-
-      {(isProcessing || processingStatus) && (
-        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md flex items-center">
-          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-3"></div>
-          <span className="text-sm text-blue-700 dark:text-blue-300">
-            {processingStatus || "处理中..."}
-          </span>
-        </div>
-      )}
+      </Card>
     </div>
   );
 }

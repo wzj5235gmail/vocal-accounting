@@ -125,7 +125,7 @@ export default function CategoryManager({ onCategoriesChange }: CategoryManagerP
         <div className="text-red-500 text-sm">{error}</div>
       )}
 
-      <div className="border dark:border-gray-700 rounded-md overflow-hidden">
+      <div className="border dark:border-gray-700 rounded-md overflow-y-auto h-[25vh]">
         <ul className="divide-y divide-gray-200 dark:divide-gray-700">
           {categories.map((category, index) => (
             <li key={index} className="p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700">

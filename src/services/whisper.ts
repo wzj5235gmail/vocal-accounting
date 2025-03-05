@@ -23,7 +23,6 @@ export async function transcribeAudio(
     const formData = new FormData();
     formData.append("file", audioBlob, `recording.${ext}`);
     formData.append("model", "whisper-1");
-    formData.append("language", "zh");
 
     console.log("Using file extension:", ext); // 调试用
 

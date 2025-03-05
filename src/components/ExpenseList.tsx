@@ -302,11 +302,10 @@ export default function ExpenseList({
           {/* 视图切换按钮 */}
           <button
             onClick={() => setViewMode("card")}
-            className={`p-2 rounded-md ${
-              viewMode === "card"
+            className={`p-2 rounded-md ${viewMode === "card"
                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
                 : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-            }`}
+              }`}
             title="卡片视图"
           >
             <svg
@@ -326,11 +325,10 @@ export default function ExpenseList({
           </button>
           <button
             onClick={() => setViewMode("list")}
-            className={`p-2 rounded-md ${
-              viewMode === "list"
+            className={`p-2 rounded-md ${viewMode === "list"
                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
                 : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-            }`}
+              }`}
             title="列表视图"
           >
             <svg
@@ -365,11 +363,10 @@ export default function ExpenseList({
                 <button
                   key={cat}
                   onClick={() => setFilter(cat === "全部" ? "" : cat)}
-                  className={`py-1 px-3 rounded-full text-xs ${
-                    (cat === "全部" && !filter) || filter === cat
+                  className={`py-1 px-3 rounded-full text-xs ${(cat === "全部" && !filter) || filter === cat
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
                       : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-                  }`}
+                    }`}
                 >
                   {cat}
                 </button>
@@ -426,25 +423,24 @@ export default function ExpenseList({
               <div className="flex justify-between items-start">
                 <div className="flex items-center">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      expense.category === "餐饮"
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${expense.category === "餐饮"
                         ? "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-200"
                         : expense.category === "购物"
-                        ? "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-200"
-                        : expense.category === "交通"
-                        ? "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-200"
-                        : expense.category === "住房"
-                        ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-200"
-                        : expense.category === "娱乐"
-                        ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-200"
-                        : expense.category === "医疗"
-                        ? "bg-pink-100 text-pink-600 dark:bg-pink-900 dark:text-pink-200"
-                        : expense.category === "教育"
-                        ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200"
-                        : expense.category === "旅行"
-                        ? "bg-teal-100 text-teal-600 dark:bg-teal-900 dark:text-teal-200"
-                        : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                    }`}
+                          ? "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-200"
+                          : expense.category === "交通"
+                            ? "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-200"
+                            : expense.category === "住房"
+                              ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-200"
+                              : expense.category === "娱乐"
+                                ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-200"
+                                : expense.category === "医疗"
+                                  ? "bg-pink-100 text-pink-600 dark:bg-pink-900 dark:text-pink-200"
+                                  : expense.category === "教育"
+                                    ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200"
+                                    : expense.category === "旅行"
+                                      ? "bg-teal-100 text-teal-600 dark:bg-teal-900 dark:text-teal-200"
+                                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                      }`}
                   >
                     {getCategoryIcon(expense.category)}
                   </div>
@@ -457,66 +453,40 @@ export default function ExpenseList({
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(expense.amount, expense.currency)}
-                    {expense.currency !== defaultCurrency &&
-                      convertedAmounts[expense.id] && (
+                <div className="flex items-start gap-2">
+                  <div className="text-right">
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(expense.amount, expense.currency)}
+                      {expense.currency !== defaultCurrency && convertedAmounts[expense.id] && (
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          约{" "}
-                          {formatCurrency(
-                            convertedAmounts[expense.id],
-                            defaultCurrency
-                          )}
+                          约 {formatCurrency(convertedAmounts[expense.id], defaultCurrency)}
                         </div>
                       )}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {expense.currency}
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {expense.currency}
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => handleEdit(expense)}
+                      className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(expense.id)}
+                      className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                      disabled={isDeleting}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
-              </div>
-
-              <div className="mt-4 flex justify-end space-x-2">
-                <button
-                  onClick={() => handleEdit(expense)}
-                  className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => handleDelete(expense.id)}
-                  className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                  disabled={isDeleting}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
               </div>
             </div>
           ))}
@@ -581,25 +551,24 @@ export default function ExpenseList({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
-                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        expense.category === "餐饮"
+                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${expense.category === "餐饮"
                           ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
                           : expense.category === "购物"
-                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                          : expense.category === "交通"
-                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                          : expense.category === "住房"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                          : expense.category === "娱乐"
-                          ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                          : expense.category === "医疗"
-                          ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
-                          : expense.category === "教育"
-                          ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
-                          : expense.category === "旅行"
-                          ? "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                      }`}
+                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                            : expense.category === "交通"
+                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                              : expense.category === "住房"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                : expense.category === "娱乐"
+                                  ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                                  : expense.category === "医疗"
+                                    ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
+                                    : expense.category === "教育"
+                                      ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
+                                      : expense.category === "旅行"
+                                        ? "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200"
+                                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                        }`}
                     >
                       {expense.category}
                     </span>

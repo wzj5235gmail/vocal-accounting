@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { Tabs, Card, Spinner, Alert, Button } from 'flowbite-react';
+import ExpenseInputSection from "@/components/ExpenseInputSection";
 import ExpenseList from "@/components/ExpenseList";
 import StatisticsSection from "@/components/StatisticsSection";
 import ExpenseModal from "@/components/ExpenseModal";
@@ -18,6 +20,13 @@ import {
   shouldSkipConfirmation,
 } from "@/services/settings";
 import SettingsModal from "@/components/SettingsModal";
+import { useRouter } from "next/navigation";
+import BottomNav from "@/components/BottomNav";
+
+interface ProcessingStatus {
+  isProcessing: boolean;
+  message?: string;
+}
 
 export default function Home() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -29,17 +38,16 @@ export default function Home() {
 
   // 录音相关状态
   const [isRecording, setIsRecording] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>({
+    isProcessing: false
+  });
   const [currentExpense, setCurrentExpense] = useState<Partial<Expense>>({});
 
   // 录音相关引用
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 添加设置模态框状态
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // 在 Home 组件中添加标签页加载状态
   const [tabLoading, setTabLoading] = useState<{
@@ -49,6 +57,14 @@ export default function Home() {
     list: false,
     stats: false,
   });
+
+  // Add new state for audio playback
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  // Add new state for transcription result
+  const [transcriptionResult, setTranscriptionResult] = useState<string | null>(null);
+
+  const router = useRouter();
 
   // 从数据库加载数据
   useEffect(() => {
@@ -74,11 +90,11 @@ export default function Home() {
     try {
       const newExpense = await addExpenseToDb(expense);
       setExpenses((prev) => [newExpense, ...prev]);
-      setIsModalOpen(false);
+      setIsExpenseModalOpen(false);
       setActiveTab("list"); // 自动切换到列表页面
     } catch (err: any) {
       console.error("添加支出记录失败:", err);
-      alert("添加支出记录失败，请重试");
+      setError("添加支出记录失败，请重试");
     }
   };
 
@@ -93,7 +109,7 @@ export default function Home() {
       );
     } catch (err: any) {
       console.error("更新支出记录失败:", err);
-      alert("更新支出记录失败，请重试");
+      setError("更新支出记录失败，请重试");
     }
   };
 
@@ -104,16 +120,33 @@ export default function Home() {
       setExpenses((prev) => prev.filter((item) => item.id !== id));
     } catch (err: any) {
       console.error("删除支出记录失败:", err);
-      alert("删除支出记录失败，请重试");
+      setError("删除支出记录失败，请重试");
     }
   };
 
+  const getMimeType = (): string => {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+      const ua = navigator.userAgent.toLowerCase();
+      if (/iphone|ipad|ipod|mac/.test(ua) && !/chrome/.test(ua)) {
+        return "audio/mp4";
+      } else {
+        return "audio/webm";
+      }
+    }
+    return "audio/mp4";
+  };
+
+  const mimeType = getMimeType()
+  console.log(`mimeType:${mimeType}`);
+
+
   // 开始录音
-  const startRecording = async () => {
+  const startRecording = async (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -129,7 +162,7 @@ export default function Home() {
       // 设置最长录音时间（30秒）
       recordingTimeoutRef.current = setTimeout(() => {
         if (isRecording && mediaRecorderRef.current) {
-          stopRecording();
+          stopRecording(new Event('timeout') as unknown as React.MouseEvent);
         }
       }, 30000);
     } catch (err) {
@@ -139,7 +172,8 @@ export default function Home() {
   };
 
   // 停止录音
-  const stopRecording = () => {
+  const stopRecording = async (e: React.MouseEvent | React.TouchEvent | Event) => {
+    e.preventDefault();
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
@@ -153,86 +187,61 @@ export default function Home() {
       // 处理录音结果
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/mp4",
+          type: "audio/webm",
         });
 
-        // 检查是否需要跳过确认
-        const skipConfirm = shouldSkipConfirmation();
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
 
-        // 如果需要跳过确认，直接处理但不显示模态框
-        if (skipConfirm) {
-          setIsProcessing(true);
-          try {
-            // 使用Whisper API转录音频
-            const text = await transcribeAudio(audioBlob, "mp3");
-            console.log("转录结果:", text);
+        setProcessingStatus({ isProcessing: true, message: "正在处理录音..." });
+        try {
+          const text = await transcribeAudio(audioBlob, "webm");
+          setTranscriptionResult(text);
+          console.log("转录结果:", text);
 
-            // 使用OpenAI分析文本
-            const result = await analyzeExpenseText(text);
-            console.log("分析结果:", result);
+          // 使用OpenAI分析文本
+          const result = await analyzeExpenseText(text);
+          console.log("分析结果:", result);
 
-            // 创建支出记录
-            const expense: Expense = {
-              id: crypto.randomUUID(),
-              amount: Number(result.amount || 0),
-              currency: result.currency || getDefaultCurrency(),
-              category: result.category || "其他",
-              date: result.date || new Date().toISOString().split("T")[0],
-              description: result.description || "",
-              createdAt: new Date().toISOString(),
-            };
+          // 创建支出记录
+          const expense: Expense = {
+            id: crypto.randomUUID(),
+            amount: Number(result.amount || 0),
+            currency: result.currency || getDefaultCurrency(),
+            category: result.category || "其他",
+            date: result.date || new Date().toISOString().split("T")[0],
+            description: result.description || "",
+            createdAt: new Date().toISOString(),
+          };
 
-            // 直接添加支出
+          if (shouldSkipConfirmation()) {
             await addExpense(expense);
-          } catch (error: any) {
-            console.error("处理录音时出错:", error);
-            setError(error.message || "处理录音时出错，请重试");
-          } finally {
-            setIsProcessing(false);
-
-            // 关闭所有音轨
-            const tracks = mediaRecorderRef.current?.stream.getTracks();
-            tracks?.forEach((track) => track.stop());
+          } else {
+            setCurrentExpense(expense);
+            setIsExpenseModalOpen(true);
           }
-        } else {
-          // 打开模态框并开始处理
-          setIsModalOpen(true);
-          setIsProcessing(true);
-          setCurrentExpense({
-            currency: getDefaultCurrency(),
-            date: new Date().toISOString().split("T")[0],
-          });
+        } catch (error: any) {
+          console.error("处理录音时出错:", error);
+          setError(error.message || "处理录音时出错，请重试");
+        } finally {
+          setProcessingStatus({ isProcessing: false });
 
-          try {
-            // 使用Whisper API转录音频
-            const text = await transcribeAudio(audioBlob, "mp3");
-            console.log("转录结果:", text);
-
-            // 使用OpenAI分析文本
-            const result = await analyzeExpenseText(text);
-            console.log("分析结果:", result);
-
-            // 更新当前支出，保留默认货币如果没有识别出货币
-            setCurrentExpense({
-              ...result,
-              currency: result.currency || getDefaultCurrency(),
-              date: result.date || new Date().toISOString().split("T")[0],
-            });
-          } catch (error: any) {
-            console.error("处理录音时出错:", error);
-            setError(error.message || "处理录音时出错，请重试");
-            setIsModalOpen(false);
-          } finally {
-            setIsProcessing(false);
-
-            // 关闭所有音轨
-            const tracks = mediaRecorderRef.current?.stream.getTracks();
-            tracks?.forEach((track) => track.stop());
-          }
+          // 关闭所有音轨
+          const tracks = mediaRecorderRef.current?.stream.getTracks();
+          tracks?.forEach((track) => track.stop());
         }
       };
     }
   };
+
+  // Add cleanup function for audio URL
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
 
   // 修改标签切换处理函数
   const handleTabChange = (tab: "input" | "list" | "stats") => {
@@ -261,155 +270,109 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
-      {/* 简化的顶部栏 */}
-      <header className="sticky top-0 z-10 bg-white dark:bg-gray-800 py-4 px-4 flex justify-between items-center shadow-sm">
-        <h1 className="text-lg font-medium text-gray-800 dark:text-white">
-          {activeTab === "input" && "记录支出"}
-          {activeTab === "list" && "支出列表"}
-          {activeTab === "stats" && "数据统计"}
-        </h1>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 pb-20 flex flex-col">
+      {/* 主要内容区域 */}
+      <div className="flex-1 flex flex-col items-center justify-center">
+        {/* 录音按钮 */}
         <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-          aria-label="设置"
+          onTouchStart={startRecording}
+          onTouchEnd={stopRecording}
+          onMouseDown={startRecording}
+          onMouseUp={stopRecording}
+          onMouseLeave={stopRecording}
+          className={`w-32 h-32 rounded-full flex items-center justify-center shadow-lg 
+                     transition-all duration-200 transform hover:scale-105 active:scale-95 mb-20
+                     select-none touch-none
+                     [-webkit-touch-callout:none] [-webkit-user-select:none] 
+                     [user-select:none] [-webkit-tap-highlight-color:transparent]
+                     ${isRecording
+              ? 'bg-red-500 hover:bg-red-600 active:bg-red-700 animate-pulse'
+              : 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700'}`}
+          disabled={processingStatus.isProcessing}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5 text-gray-600 dark:text-gray-300"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
-            />
-          </svg>
+          {processingStatus.isProcessing ? (
+            <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent"></div>
+          ) : (
+            <svg
+              className="w-16 h-16 text-white pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {isRecording ? (
+                // 录音中图标（波形动画）
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                >
+                  <animate
+                    attributeName="opacity"
+                    values="1;0.5;1"
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                </path>
+              ) : (
+                // 麦克风图标
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                />
+              )}
+            </svg>
+          )}
         </button>
-      </header>
 
+        {/* 录音提示文字 */}
+        <div className="text-gray-600 dark:text-gray-400 mb-8 text-center
+                      select-none touch-none
+                      [-webkit-touch-callout:none] [-webkit-user-select:none] 
+                      [user-select:none] [-webkit-tap-highlight-color:transparent]">
+          {isRecording ? (
+            <span className="animate-pulse">松开结束录音</span>
+          ) : (
+            <>
+              <p>按住开始录音</p><br></br>
+              <p>如：“今天在costco花了150加币”</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 错误提示 */}
       {error && (
-        <div className="px-4 py-2 bg-red-100 text-red-700 text-sm">{error}</div>
+        <div className="fixed top-4 left-4 right-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+            {error}
+          </div>
+        </div>
       )}
 
-      {/* 主要内容区域 - 添加 pb-16 为底部导航栏留出空间 */}
-      <main className="flex-1 overflow-y-auto pb-16">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
+      {/* 加载指示器 */}
+      {processingStatus.isProcessing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-4 rounded-lg">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <p className="mt-2 text-sm text-gray-600">{processingStatus.message || "处理中..."}</p>
           </div>
-        ) : (
-          <div className="p-4">
-            {activeTab === "input" && (
-              <div className="flex flex-col items-center justify-center py-8">
-                <button
-                  onMouseDown={startRecording}
-                  onMouseUp={stopRecording}
-                  onTouchStart={startRecording}
-                  onTouchEnd={stopRecording}
-                  className={`w-24 h-24 rounded-full flex items-center justify-center transition-all transform ${isRecording
-                    ? "bg-red-500 scale-110"
-                    : "bg-blue-500 hover:bg-blue-600"
-                    }`}
-                >
-                  <div className="text-white text-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8 mx-auto"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                      <line x1="12" y1="19" x2="12" y2="23" />
-                      <line x1="8" y1="23" x2="16" y2="23" />
-                    </svg>
-                    <span className="block mt-1 text-sm">
-                      {isRecording ? "松开" : "按住"}
-                    </span>
-                  </div>
-                </button>
-
-                <p className="mt-6 text-sm text-gray-600 dark:text-gray-400 text-center">
-                  {isRecording ? (
-                    <span className="flex items-center justify-center">
-                      <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse" />
-                      正在录音...
-                    </span>
-                  ) : (
-                    `按住按钮说出支出，例如："买咖啡35元"`
-                  )}
-                </p>
-              </div>
-            )}
-
-            {activeTab === "list" && (
-              <div className={tabLoading.list ? "opacity-50" : ""}>
-                <ExpenseList
-                  expenses={expenses}
-                  onUpdateExpense={updateExpense}
-                  onDeleteExpense={deleteExpense}
-                />
-              </div>
-            )}
-
-            {activeTab === "stats" && (
-              <div className={tabLoading.stats ? "opacity-50" : ""}>
-                <StatisticsSection expenses={expenses} />
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-
-      {/* 底部导航栏 - 添加 z-10 确保在内容之上 */}
-      <nav className="fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-gray-800 border-t dark:border-gray-700">
-        <div className="flex justify-around">
-          {[
-            { id: "input", icon: "📝", label: "记录" },
-            { id: "list", icon: "📋", label: "明细" },
-            { id: "stats", icon: "📊", label: "统计" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id as any)}
-              className={`flex-1 py-3 flex flex-col items-center justify-center ${activeTab === tab.id
-                ? "text-blue-500"
-                : "text-gray-600 dark:text-gray-400"
-                }`}
-            >
-              <span className="text-xl mb-1">{tab.icon}</span>
-              <span className="text-xs">{tab.label}</span>
-            </button>
-          ))}
         </div>
-      </nav>
+      )}
 
+      {/* 模态框 */}
       <ExpenseModal
-        isOpen={isModalOpen}
-        isProcessing={isProcessing}
+        isOpen={isExpenseModalOpen}
+        isProcessing={processingStatus.isProcessing}
         expense={currentExpense}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => setIsExpenseModalOpen(false)}
         onSave={addExpense}
       />
 
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
+      <BottomNav />
     </div>
   );
 }

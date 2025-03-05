@@ -43,6 +43,8 @@ export default function StatisticsSection({
   const [isConvertingCurrency, setIsConvertingCurrency] = useState(false);
   const [convertedTotal, setConvertedTotal] = useState<number | null>(null);
 
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+
   // 根据时间范围筛选数据
   useEffect(() => {
     let filtered: Expense[] = [];
@@ -263,178 +265,209 @@ export default function StatisticsSection({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-          支出统计
-        </h2>
-      </div>
-
+    <div className="space-y-4">
+      {/* 总支出卡片 */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              时间范围
-            </label>
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value as TimeRange)}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
-            >
-              <option value="all">全部时间</option>
-              <option value="thisWeek">本周</option>
-              <option value="thisMonth">本月</option>
-              <option value="thisYear">今年</option>
-              <option value="lastWeek">上周</option>
-              <option value="lastMonth">上月</option>
-              <option value="lastYear">去年</option>
-              <option value="custom">自定义范围</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              分组方式
-            </label>
-            <select
-              value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value as GroupBy)}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
-            >
-              <option value="category">按分类</option>
-              <option value="day">按日</option>
-              <option value="month">按月</option>
-              <option value="year">按年</option>
-            </select>
-          </div>
-        </div>
-
-        {timeRange === "custom" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                开始日期
-              </label>
-              <input
-                type="date"
-                value={customRange.start}
-                onChange={(e) =>
-                  setCustomRange({ ...customRange, start: e.target.value })
-                }
-                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                结束日期
-              </label>
-              <input
-                type="date"
-                value={customRange.end}
-                onChange={(e) =>
-                  setCustomRange({ ...customRange, end: e.target.value })
-                }
-                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            统计货币
-          </label>
-          <select
-            value={selectedCurrency}
-            onChange={(e) => setSelectedCurrency(e.target.value)}
-            className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
-          >
-            {currencies.map((currency) => (
-              <option key={currency.code} value={currency.code}>
-                {currency.symbol} {currency.name} ({currency.code})
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            所有支出将按当前汇率转换为所选货币进行统计
-          </p>
-        </div>
-
-        <div className="mt-6">
-          <div className="text-center mb-4">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              总支出
-            </div>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              {isConvertingCurrency ? (
-                <span className="text-gray-400">计算中...</span>
-              ) : (
-                formatCurrency(convertedTotal || 0, selectedCurrency)
-              )}
-            </div>
-            {selectedCurrency !== getDefaultCurrency() && (
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                已按当前汇率转换
-              </div>
+        <div className="text-center">
+          <div className="text-sm text-gray-500 dark:text-gray-400">总支出</div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-white">
+            {isConvertingCurrency ? (
+              <span className="text-gray-400">计算中...</span>
+            ) : (
+              formatCurrency(convertedTotal || 0, selectedCurrency)
             )}
           </div>
-
-          {stats.length > 0 ? (
-            <div className="space-y-4">
-              {/* 移动端友好的图表展示 */}
-              <div className="overflow-hidden">
-                <div className="h-8 w-full flex rounded-full overflow-hidden">
-                  {stats.map((item, index) => (
-                    <div
-                      key={index}
-                      className={`h-full ${getColorClass(index)}`}
-                      style={{ width: `${item.percentage}%` }}
-                      title={`${item.label}: ${formatCurrency(
-                        item.amount,
-                        selectedCurrency
-                      )} (${item.percentage.toFixed(1)}%)`}
-                    ></div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 图例和详细数据 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {stats.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <div
-                      className={`w-4 h-4 rounded-full ${getColorClass(
-                        index
-                      )} mr-2`}
-                    ></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-                          {groupBy === "category"
-                            ? item.label
-                            : formatDateLabel(item.label)}
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {item.percentage.toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="text-base font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(item.amount, selectedCurrency)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              所选时间范围内没有支出记录
+          {selectedCurrency !== getDefaultCurrency() && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              已按当前汇率转换
             </div>
           )}
         </div>
+      </div>
+
+      {/* 筛选器折叠面板 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full px-4 py-3 flex justify-between items-center text-left"
+        >
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            筛选选项
+          </span>
+          <svg
+            className={`w-5 h-5 text-gray-500 transform transition-transform ${isFilterExpanded ? "rotate-180" : ""
+              }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+
+        {isFilterExpanded && (
+          <div className="px-4 pb-4">
+            <div className="space-y-4">
+              {/* 时间范围和分组方式 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    时间范围
+                  </label>
+                  <select
+                    value={timeRange}
+                    onChange={(e) => setTimeRange(e.target.value as TimeRange)}
+                    className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-600 
+                             bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
+                  >
+                    <option value="all">全部时间</option>
+                    <option value="thisWeek">本周</option>
+                    <option value="thisMonth">本月</option>
+                    <option value="thisYear">今年</option>
+                    <option value="lastWeek">上周</option>
+                    <option value="lastMonth">上月</option>
+                    <option value="lastYear">去年</option>
+                    <option value="custom">自定义范围</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    分组方式
+                  </label>
+                  <select
+                    value={groupBy}
+                    onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+                    className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-600 
+                             bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
+                  >
+                    <option value="category">按分类</option>
+                    <option value="day">按日</option>
+                    <option value="month">按月</option>
+                    <option value="year">按年</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 自定义日期范围 */}
+              {timeRange === "custom" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      开始日期
+                    </label>
+                    <input
+                      type="date"
+                      value={customRange.start}
+                      onChange={(e) =>
+                        setCustomRange({ ...customRange, start: e.target.value })
+                      }
+                      className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-600 
+                               bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      结束日期
+                    </label>
+                    <input
+                      type="date"
+                      value={customRange.end}
+                      onChange={(e) =>
+                        setCustomRange({ ...customRange, end: e.target.value })
+                      }
+                      className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-600 
+                               bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* 统计货币 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  统计货币
+                </label>
+                <select
+                  value={selectedCurrency}
+                  onChange={(e) => setSelectedCurrency(e.target.value)}
+                  className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-600 
+                           bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
+                >
+                  {currencies.map((currency) => (
+                    <option key={currency.code} value={currency.code}>
+                      {currency.symbol} {currency.name} ({currency.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 统计图表 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+        {stats.length > 0 ? (
+          <div className="space-y-4">
+            {/* 移动端友好的图表展示 */}
+            <div className="overflow-hidden">
+              <div className="h-8 w-full flex rounded-full overflow-hidden">
+                {stats.map((item, index) => (
+                  <div
+                    key={index}
+                    className={`h-full ${getColorClass(index)}`}
+                    style={{ width: `${item.percentage}%` }}
+                    title={`${item.label}: ${formatCurrency(
+                      item.amount,
+                      selectedCurrency
+                    )} (${item.percentage.toFixed(1)}%)`}
+                  ></div>
+                ))}
+              </div>
+            </div>
+
+            {/* 图例和详细数据 */}
+            <div className="grid grid-cols-1 gap-2">
+              {stats.map((item, index) => (
+                <div
+                  key={index}
+                  className="flex items-center p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  <div
+                    className={`w-3 h-3 rounded-full ${getColorClass(
+                      index
+                    )} mr-2 flex-shrink-0`}
+                  ></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                        {groupBy === "category"
+                          ? item.label
+                          : formatDateLabel(item.label)}
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                        {item.percentage.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(item.amount, selectedCurrency)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            所选时间范围内没有支出记录
+          </div>
+        )}
       </div>
     </div>
   );
