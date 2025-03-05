@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { Expense, ExpenseCategory } from "@/types/expense";
 import { currencies } from "@/data/currencies";
-import { getDefaultCurrency, setDefaultCurrency, setSkipConfirmation } from "@/services/settings";
+import {
+  getDefaultCurrency,
+  setDefaultCurrency,
+  setSkipConfirmation,
+} from "@/services/settings";
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -11,7 +15,13 @@ interface ExpenseModalProps {
   onSave: (expense: Expense) => void;
 }
 
-export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, onSave }: ExpenseModalProps) {
+export default function ExpenseModal({
+  isOpen,
+  isProcessing,
+  expense,
+  onClose,
+  onSave,
+}: ExpenseModalProps) {
   const [editedExpense, setEditedExpense] = useState<Partial<Expense>>(expense);
   const [showDetails, setShowDetails] = useState(false);
   const [isDefaultCurrency, setIsDefaultCurrency] = useState(false);
@@ -21,14 +31,22 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
   useEffect(() => {
     setEditedExpense({
       ...expense,
-      currency: expense.currency || getDefaultCurrency()
+      currency: expense.currency || getDefaultCurrency(),
     });
     setShowDetails(false);
     setIsDefaultCurrency(false);
   }, [expense]);
 
   const categories: ExpenseCategory[] = [
-    "餐饮", "购物", "交通", "住房", "娱乐", "医疗", "教育", "旅行", "其他"
+    "餐饮",
+    "购物",
+    "交通",
+    "住房",
+    "娱乐",
+    "医疗",
+    "教育",
+    "旅行",
+    "其他",
   ];
 
   const handleSave = () => {
@@ -53,9 +71,9 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
       amount: Number(editedExpense.amount),
       currency: editedExpense.currency || getDefaultCurrency(),
       category: editedExpense.category || "其他",
-      date: editedExpense.date || new Date().toISOString().split('T')[0],
+      date: editedExpense.date || new Date().toISOString().split("T")[0],
       description: editedExpense.description || "",
-      createdAt: editedExpense.createdAt || new Date().toISOString()
+      createdAt: editedExpense.createdAt || new Date().toISOString(),
     };
 
     onSave(completeExpense);
@@ -63,7 +81,7 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
 
   // 获取货币符号
   const getCurrencySymbol = (code: string) => {
-    const currency = currencies.find(c => c.code === code);
+    const currency = currencies.find((c) => c.code === code);
     return currency?.symbol || code;
   };
 
@@ -75,26 +93,36 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
         {isProcessing ? (
           <div className="py-12 flex flex-col items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">分析中...</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">正在处理您的语音内容</p>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              分析中...
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              正在处理您的语音内容
+            </p>
           </div>
         ) : !showDetails ? (
           // 简化的确认界面
           <>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">确认支出</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              确认支出
+            </h3>
 
             <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-gray-500 dark:text-gray-400">金额:</span>
                 <span className="text-xl font-bold text-gray-900 dark:text-white">
-                  {getCurrencySymbol(editedExpense.currency || getDefaultCurrency())}
+                  {getCurrencySymbol(
+                    editedExpense.currency || getDefaultCurrency()
+                  )}
                   {Number(editedExpense.amount || 0).toFixed(2)}
                 </span>
               </div>
 
               {editedExpense.category && (
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-500 dark:text-gray-400">分类:</span>
+                  <span className="text-gray-500 dark:text-gray-400">
+                    分类:
+                  </span>
                   <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                     {editedExpense.category}
                   </span>
@@ -103,7 +131,9 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
 
               {editedExpense.date && (
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-500 dark:text-gray-400">日期:</span>
+                  <span className="text-gray-500 dark:text-gray-400">
+                    日期:
+                  </span>
                   <span className="text-gray-900 dark:text-white">
                     {new Date(editedExpense.date).toLocaleDateString()}
                   </span>
@@ -112,8 +142,12 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
 
               {editedExpense.description && (
                 <div className="mt-2">
-                  <span className="text-gray-500 dark:text-gray-400">备注:</span>
-                  <p className="text-gray-900 dark:text-white mt-1">{editedExpense.description}</p>
+                  <span className="text-gray-500 dark:text-gray-400">
+                    备注:
+                  </span>
+                  <p className="text-gray-900 dark:text-white mt-1">
+                    {editedExpense.description}
+                  </p>
                 </div>
               )}
             </div>
@@ -126,7 +160,10 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
                 onChange={(e) => setSkipFutureConfirmations(e.target.checked)}
                 className="mr-2"
               />
-              <label htmlFor="skipConfirmation" className="text-sm text-gray-600 dark:text-gray-400">
+              <label
+                htmlFor="skipConfirmation"
+                className="text-sm text-gray-600 dark:text-gray-400"
+              >
                 下次自动保存，不再确认
               </label>
             </div>
@@ -159,7 +196,9 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
           // 详细编辑界面
           <>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">编辑支出</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                编辑支出
+              </h3>
               <button
                 onClick={() => setShowDetails(false)}
                 className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
@@ -176,10 +215,15 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
                 <div className="flex">
                   <select
                     value={editedExpense.currency || getDefaultCurrency()}
-                    onChange={(e) => setEditedExpense({ ...editedExpense, currency: e.target.value })}
+                    onChange={(e) =>
+                      setEditedExpense({
+                        ...editedExpense,
+                        currency: e.target.value,
+                      })
+                    }
                     className="rounded-l-md border border-r-0 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-3"
                   >
-                    {currencies.map(currency => (
+                    {currencies.map((currency) => (
                       <option key={currency.code} value={currency.code}>
                         {currency.symbol} ({currency.code})
                       </option>
@@ -188,7 +232,12 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
                   <input
                     type="number"
                     value={editedExpense.amount || ""}
-                    onChange={(e) => setEditedExpense({ ...editedExpense, amount: e.target.value })}
+                    onChange={(e) =>
+                      setEditedExpense({
+                        ...editedExpense,
+                        amount: Number(e.target.value),
+                      })
+                    }
                     className="flex-1 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
                     placeholder="0.00"
                     step="0.01"
@@ -204,7 +253,10 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
                     onChange={(e) => setIsDefaultCurrency(e.target.checked)}
                     className="mr-2"
                   />
-                  <label htmlFor="defaultCurrency" className="text-sm text-gray-600 dark:text-gray-400">
+                  <label
+                    htmlFor="defaultCurrency"
+                    className="text-sm text-gray-600 dark:text-gray-400"
+                  >
                     设为默认货币
                   </label>
                 </div>
@@ -216,8 +268,12 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
                 </label>
                 <input
                   type="date"
-                  value={editedExpense.date || new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setEditedExpense({ ...editedExpense, date: e.target.value })}
+                  value={
+                    editedExpense.date || new Date().toISOString().split("T")[0]
+                  }
+                  onChange={(e) =>
+                    setEditedExpense({ ...editedExpense, date: e.target.value })
+                  }
                   className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
                 />
               </div>
@@ -231,11 +287,14 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
                     <button
                       key={cat}
                       type="button"
-                      onClick={() => setEditedExpense({ ...editedExpense, category: cat })}
-                      className={`py-2 px-3 rounded-md text-sm ${editedExpense.category === cat
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100 border-2 border-blue-500'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600'
-                        }`}
+                      onClick={() =>
+                        setEditedExpense({ ...editedExpense, category: cat })
+                      }
+                      className={`py-2 px-3 rounded-md text-sm ${
+                        editedExpense.category === cat
+                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100 border-2 border-blue-500"
+                          : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
+                      }`}
                     >
                       {cat}
                     </button>
@@ -250,7 +309,12 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
                 <input
                   type="text"
                   value={editedExpense.description || ""}
-                  onChange={(e) => setEditedExpense({ ...editedExpense, description: e.target.value })}
+                  onChange={(e) =>
+                    setEditedExpense({
+                      ...editedExpense,
+                      description: e.target.value,
+                    })
+                  }
                   className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-2"
                   placeholder="添加备注..."
                 />
@@ -276,4 +340,4 @@ export default function ExpenseModal({ isOpen, isProcessing, expense, onClose, o
       </div>
     </div>
   );
-} 
+}

@@ -1,8 +1,9 @@
 // OpenAI API 服务
-import { Expense, ExpenseCategory } from "@/types/expense";
-import { getDefaultCurrency } from "./settings";
+import { Expense } from "@/types/expense";
+// import { ExpenseCategory } from "@/types/expense";
+// import { getDefaultCurrency } from "./settings";
 
-const DEFAULT_CURRENCY = getDefaultCurrency();
+// const DEFAULT_CURRENCY = getDefaultCurrency();
 
 // OpenAI API 请求接口
 interface OpenAIRequest {
@@ -43,7 +44,7 @@ export async function analyzeExpenseText(
           content: `你是一个财务分析助手，负责从用户的描述中提取支出信息。
           请从用户输入中提取以下信息：
           1. amount: 金额（数字）
-          2. currency: 货币类型（默认为${DEFAULT_CURRENCY}，支持的货币代码包括：CNY, USD, EUR, JPY, GBP, AUD, CAD, HKD, SGD, CHF, KRW, RUB, INR, BRL, MXN, THB, MYR, IDR, PHP, TWD）
+          2. currency: 货币类型（默认为CNY，支持的货币代码包括：CNY, USD, EUR, JPY, GBP, AUD, CAD, HKD, SGD, CHF, KRW, RUB, INR, BRL, MXN, THB, MYR, IDR, PHP, TWD）
           3. category: 支出类别（从以下选项中选择最匹配的一个：餐饮、购物、交通、住房、娱乐、医疗、教育、旅行、其他）
           4. date: 日期（如果提到了日期，格式为YYYY-MM-DD；如果没有提到或者日期是今天，则不输出此项）
           5. description: 描述（简短描述这笔支出）

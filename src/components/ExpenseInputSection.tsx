@@ -2,33 +2,41 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Expense, ExpenseCategory } from "@/types/expense";
-import { v4 as uuidv4 } from "uuid";
 import { analyzeExpenseText } from "@/services/openai";
 import { transcribeAudio } from "@/services/whisper";
 import { useToast } from "@/components/ToastManager";
 import { getUserCategories } from "@/services/categories";
+import { getUserSettings } from "@/services/settings";
 
 interface ExpenseInputSectionProps {
   onAddExpense: (expense: Expense) => void;
 }
 
-export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectionProps) {
+// 添加 SpeechRecognition 类型声明
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+    SpeechRecognition: any;
+  }
+}
+
+export default function ExpenseInputSection({
+  onAddExpense,
+}: ExpenseInputSectionProps) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [parsedExpense, setParsedExpense] = useState<Partial<Expense> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("CNY");
   const [category, setCategory] = useState<ExpenseCategory>("其他");
   const [description, setDescription] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   const recognitionRef = useRef<any>(null);
 
   const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
@@ -37,23 +45,25 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
 
   // 初始化语音识别
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      // @ts-ignore
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (typeof window !== "undefined" && "webkitSpeechRecognition" in window) {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'zh-CN';
+      recognitionRef.current.lang = "zh-CN";
 
       recognitionRef.current.onresult = (event: any) => {
         const current = event.resultIndex;
         if (event.results[current].isFinal) {
-          setTranscript(prev => prev + event.results[current][0].transcript + " ");
+          setTranscript(
+            (prev) => prev + event.results[current][0].transcript + " "
+          );
         }
       };
 
       recognitionRef.current.onerror = (event: any) => {
-        console.error('语音识别错误:', event.error);
+        console.error("语音识别错误:", event.error);
         setIsListening(false);
         setError(`语音识别错误: ${event.error}`);
       };
@@ -105,8 +115,9 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(audioBlob);
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
         setIsRecording(false);
 
         // 自动转录
@@ -161,9 +172,12 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
   };
 
   // 修改handleProcessTranscript函数，使其可以接受参数
-  const handleProcessTranscript = async (text?: string) => {
+  const handleProcessTranscript = async (
+    textOrEvent?: string | React.MouseEvent
+  ) => {
     try {
-      const transcriptToProcess = text || transcript;
+      const transcriptToProcess =
+        typeof textOrEvent === "string" ? textOrEvent : transcript;
       if (!transcriptToProcess.trim()) return;
 
       setIsProcessing(true);
@@ -187,8 +201,8 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
         currency: result.currency || "CNY",
         category: result.category || "其他",
         description: result.description || "",
-        date: result.date || new Date().toISOString().split('T')[0],
-        createdAt: new Date().toISOString()
+        date: result.date || new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString(),
       };
 
       // 如果用户选择了跳过确认，直接保存
@@ -199,7 +213,6 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
         showToast("支出已成功添加", "success");
       } else {
         // 否则打开确认对话框
-        setParsedExpense(expense);
         setAmount(expense.amount.toString());
         setCurrency(expense.currency);
         setCategory(expense.category);
@@ -230,7 +243,7 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
         category,
         description,
         date,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       await onAddExpense(expense);
@@ -238,7 +251,7 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
       // 重置表单
       setAmount("");
       setDescription("");
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(new Date().toISOString().split("T")[0]);
 
       showToast("支出已成功添加", "success");
     } catch (error) {
@@ -251,7 +264,15 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
   };
 
   const categories: ExpenseCategory[] = [
-    "餐饮", "购物", "交通", "住房", "娱乐", "医疗", "教育", "旅行", "其他"
+    "餐饮",
+    "购物",
+    "交通",
+    "住房",
+    "娱乐",
+    "医疗",
+    "教育",
+    "旅行",
+    "其他",
   ];
 
   // 修改 shouldSkipConfirmation 函数
@@ -263,25 +284,36 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">记录新支出</h2>
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+          记录新支出
+        </h2>
 
         {error && (
-          <div className="p-3 bg-red-100 text-red-700 rounded-md">
-            {error}
-          </div>
+          <div className="p-3 bg-red-100 text-red-700 rounded-md">{error}</div>
         )}
 
         <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <div className="flex items-center mb-4">
             <button
               onClick={isRecording ? stopRecording : startRecording}
-              className={`flex items-center justify-center w-12 h-12 rounded-full ${isRecording
-                ? 'bg-red-500 hover:bg-red-600'
-                : 'bg-blue-500 hover:bg-blue-600'
-                } text-white transition-colors`}
+              className={`flex items-center justify-center w-12 h-12 rounded-full ${
+                isRecording
+                  ? "bg-red-500 hover:bg-red-600"
+                  : "bg-blue-500 hover:bg-blue-600"
+              } text-white transition-colors`}
               aria-label={isRecording ? "停止录音" : "开始录音"}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                 <line x1="12" y1="19" x2="12" y2="23"></line>
@@ -314,7 +346,7 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
               清除
             </button>
             <button
-              onClick={handleProcessTranscript}
+              onClick={() => handleProcessTranscript()}
               disabled={isProcessing || !transcript.trim()}
               className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -374,10 +406,11 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
               key={cat}
               type="button"
               onClick={() => setCategory(cat)}
-              className={`py-2 px-3 rounded-md text-sm ${category === cat
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100 border-2 border-blue-500'
-                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600'
-                }`}
+              className={`py-2 px-3 rounded-md text-sm ${
+                category === cat
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100 border-2 border-blue-500"
+                  : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
+              }`}
             >
               {cat}
             </button>
@@ -418,4 +451,4 @@ export default function ExpenseInputSection({ onAddExpense }: ExpenseInputSectio
       )}
     </div>
   );
-} 
+}
