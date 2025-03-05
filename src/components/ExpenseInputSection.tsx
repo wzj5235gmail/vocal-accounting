@@ -102,20 +102,19 @@ export default function ExpenseInputSection({
   // 检测支持的音频格式
   const getSupportedMimeType = () => {
     const types = [
-      "audio/mp3",
-      "audio/wav",
-      "audio/ogg",
-      "audio/webm",
-      "audio/mpeg",
+      { mimeType: "audio/webm;codecs=opus", ext: "webm" },
+      { mimeType: "audio/mp4;codecs=mp4a", ext: "m4a" },
+      { mimeType: "audio/ogg;codecs=opus", ext: "ogg" },
+      { mimeType: "audio/wav", ext: "wav" },
     ];
 
     for (const type of types) {
-      if (MediaRecorder.isTypeSupported(type)) {
+      if (MediaRecorder.isTypeSupported(type.mimeType)) {
         return type;
       }
     }
 
-    return "audio/webm"; // 默认格式
+    return { mimeType: "", ext: "webm" }; // 默认格式
   };
 
   // 添加录音功能
@@ -123,11 +122,10 @@ export default function ExpenseInputSection({
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = getSupportedMimeType();
+      const { mimeType, ext } = getSupportedMimeType();
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: mimeType,
-      });
+      const options = mimeType ? { mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
 
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -139,10 +137,7 @@ export default function ExpenseInputSection({
       };
 
       mediaRecorder.onstop = async () => {
-        // 修改 Blob 类型为 mp3
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/mp3",
-        });
+        const audioBlob = new Blob(audioChunksRef.current);
         setIsRecording(false);
 
         // 自动转录
@@ -150,7 +145,7 @@ export default function ExpenseInputSection({
           setIsProcessing(true);
           setProcessingStatus("正在转录录音...");
 
-          const transcription = await transcribeAudio(audioBlob);
+          const transcription = await transcribeAudio(audioBlob, ext);
           setTranscript(transcription);
 
           // 自动处理文本
@@ -162,7 +157,8 @@ export default function ExpenseInputSection({
         }
       };
 
-      mediaRecorder.start();
+      // 设置较短的时间间隔来获取数据
+      mediaRecorder.start(100);
       setIsRecording(true);
     } catch (err) {
       console.error("录音失败:", err);
