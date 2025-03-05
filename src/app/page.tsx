@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Tabs, Card, Spinner, Alert, Button } from 'flowbite-react';
-import ExpenseInputSection from "@/components/ExpenseInputSection";
-import ExpenseList from "@/components/ExpenseList";
-import StatisticsSection from "@/components/StatisticsSection";
+import { Tabs, Card, Spinner, Alert, Button } from "flowbite-react";
 import ExpenseModal from "@/components/ExpenseModal";
 import { Expense } from "@/types/expense";
 import {
@@ -21,8 +18,8 @@ import {
 } from "@/services/settings";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile } from '@ffmpeg/util';
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { fetchFile } from "@ffmpeg/util";
 
 interface ProcessingStatus {
   isProcessing: boolean;
@@ -41,7 +38,7 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>({
-    isProcessing: false
+    isProcessing: false,
   });
   const [currentExpense, setCurrentExpense] = useState<Partial<Expense>>({});
 
@@ -63,7 +60,14 @@ export default function Home() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   // Add new state for transcription result
-  const [transcriptionResult, setTranscriptionResult] = useState<string | null>(null);
+  const [transcriptionResult, setTranscriptionResult] = useState<string | null>(
+    null
+  );
+
+  // Add new state for tap detection and tooltip
+  const [showTapTooltip, setShowTapTooltip] = useState(false);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
 
   const router = useRouter();
 
@@ -81,12 +85,12 @@ export default function Home() {
         await ffmpegRef.current.load();
         setFfmpegLoaded(true);
       } catch (error) {
-        console.error('Failed to load FFmpeg:', error);
+        console.error("Failed to load FFmpeg:", error);
       }
     };
 
     // 只在客户端执行
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       loadFFmpeg();
     }
   }, []);
@@ -109,6 +113,24 @@ export default function Home() {
 
     loadExpenses();
   }, []);
+
+  // Add new useEffect for microphone permission
+  useEffect(() => {
+    const requestMicrophonePermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        // Stop the tracks immediately since we don't need them yet
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (err) {
+        console.error("无法访问麦克风:", err);
+        setError("无法访问麦克风，请确保已授予麦克风权限");
+      }
+    };
+
+    requestMicrophonePermission();
+  }, []); // Empty dependency array means this runs once on mount
 
   // 添加支出记录
   const addExpense = async (expense: Expense) => {
@@ -150,7 +172,7 @@ export default function Home() {
   };
 
   const getMimeType = (): string => {
-    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+    if (typeof window !== "undefined" && typeof navigator !== "undefined") {
       const ua = navigator.userAgent.toLowerCase();
       if (/iphone|ipad|ipod|mac/.test(ua) && !/chrome/.test(ua)) {
         return "audio/mp4";
@@ -161,41 +183,61 @@ export default function Home() {
     return "audio/mp4";
   };
 
-  const mimeType = getMimeType()
+  const mimeType = getMimeType();
   console.log(`mimeType:${mimeType}`);
 
   // 修改音频处理逻辑
   const convertAudioFormat = async (audioBlob: Blob): Promise<Blob> => {
-    if (mimeType !== 'audio/mp4' || !ffmpegLoaded || !ffmpegRef.current) {
+    if (mimeType !== "audio/mp4" || !ffmpegLoaded || !ffmpegRef.current) {
       return audioBlob;
     }
 
     try {
       const ffmpeg = ffmpegRef.current;
-      const inputFileName = 'input.m4a';
-      const outputFileName = 'output.wav';
+      const inputFileName = "input.m4a";
+      const outputFileName = "output.wav";
 
       // 写入输入文件
       ffmpeg.writeFile(inputFileName, await fetchFile(audioBlob));
 
       // 转换格式
-      await ffmpeg.exec(['-i', inputFileName, outputFileName]);
+      await ffmpeg.exec(["-i", inputFileName, outputFileName]);
 
       // 读取输出文件
       const data = await ffmpeg.readFile(outputFileName);
-      return new Blob([data], { type: 'audio/wav' });
+      return new Blob([data], { type: "audio/wav" });
     } catch (error) {
-      console.error('Audio conversion failed:', error);
+      console.error("Audio conversion failed:", error);
       return audioBlob;
     }
   };
 
-  // 开始录音
+  // 修改 startRecording 函数
   const startRecording = async (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     setError(null);
+
+    // 如果已经在录音，先停止
+    if (isRecording) {
+      await stopRecording(e);
+      return;
+    }
+
+    // Clear any existing tooltip timeout
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // 确保之前的 MediaRecorder 已经停止和清理
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stream
+          .getTracks()
+          .forEach((track) => track.stop());
+      }
+
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -207,80 +249,150 @@ export default function Home() {
       };
 
       mediaRecorder.start();
+      setRecordingStartTime(Date.now());
       setIsRecording(true);
 
-      // 设置最长录音时间（30秒）
+      // Set recording timeout (30 seconds)
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+      }
       recordingTimeoutRef.current = setTimeout(() => {
         if (isRecording && mediaRecorderRef.current) {
-          stopRecording(new Event('timeout') as unknown as React.MouseEvent);
+          stopRecording(new Event("timeout") as unknown as React.MouseEvent);
         }
       }, 30000);
     } catch (err) {
       console.error("无法访问麦克风:", err);
       setError("无法访问麦克风，请确保已授予麦克风权限");
+      setIsRecording(false);
     }
   };
 
-  // 停止录音
-  const stopRecording = async (e: React.MouseEvent | React.TouchEvent | Event) => {
+  // 修改 stopRecording 函数
+  const stopRecording = async (
+    e: React.MouseEvent | React.TouchEvent | Event
+  ) => {
     e.preventDefault();
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
 
-      // 清除超时计时器
+    // 清除超时计时器
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
+    }
+
+    // 如果没有在录音，直接返回
+    if (!isRecording || !mediaRecorderRef.current) {
+      setIsRecording(false);
+      return;
+    }
+
+    // Show tooltip if recording duration was too short
+    if (Date.now() - recordingStartTime < 3000) {
+      setShowTapTooltip(true);
+      tapTimeoutRef.current = setTimeout(() => {
+        setShowTapTooltip(false);
+      }, 2000);
+
+      // Stop and cleanup recording
+      if (mediaRecorderRef.current) {
+        try {
+          mediaRecorderRef.current.stop();
+          mediaRecorderRef.current.stream
+            .getTracks()
+            .forEach((track) => track.stop());
+        } catch (err) {
+          console.error("停止录音时出错:", err);
+        }
+        setIsRecording(false);
+        return;
+      }
+    }
+
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      try {
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+
+        // 处理录音结果
+        mediaRecorderRef.current.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: mimeType,
+          });
+          const url = URL.createObjectURL(audioBlob);
+          setAudioUrl(url);
+
+          setProcessingStatus({
+            isProcessing: true,
+            message: "正在处理录音...",
+          });
+          try {
+            const convertedBlob = await convertAudioFormat(audioBlob);
+            const text = await transcribeAudio(convertedBlob, "wav");
+            setTranscriptionResult(text);
+            console.log("转录结果:", text);
+
+            // 使用OpenAI分析文本
+            const result = await analyzeExpenseText(text);
+            console.log("分析结果:", result);
+
+            // 创建支出记录
+            const expense: Expense = {
+              id: crypto.randomUUID(),
+              amount: Number(result.amount || 0),
+              currency: result.currency || getDefaultCurrency(),
+              category: result.category || "其他",
+              date: result.date || new Date().toISOString().split("T")[0],
+              description: result.description || "",
+              createdAt: new Date().toISOString(),
+            };
+
+            if (shouldSkipConfirmation()) {
+              await addExpense(expense);
+            } else {
+              setCurrentExpense(expense);
+              setIsExpenseModalOpen(true);
+            }
+          } catch (error: any) {
+            console.error("处理录音时出错:", error);
+            setError(error.message || "处理录音时出错，请重试");
+          } finally {
+            setProcessingStatus({ isProcessing: false });
+
+            // 关闭所有音轨
+            const tracks = mediaRecorderRef.current?.stream.getTracks();
+            tracks?.forEach((track) => track.stop());
+          }
+        };
+      } catch (err) {
+        console.error("停止录音时出错:", err);
+        setIsRecording(false);
+      }
+    }
+  };
+
+  // 添加组件卸载时的清理函数
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current) {
+        try {
+          mediaRecorderRef.current.stream
+            .getTracks()
+            .forEach((track) => track.stop());
+        } catch (err) {
+          console.error("清理录音资源时出错:", err);
+        }
+      }
       if (recordingTimeoutRef.current) {
         clearTimeout(recordingTimeoutRef.current);
-        recordingTimeoutRef.current = null;
       }
-
-      // 处理录音结果
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        const url = URL.createObjectURL(audioBlob);
-        setAudioUrl(url);
-
-        setProcessingStatus({ isProcessing: true, message: "正在处理录音..." });
-        try {
-          const convertedBlob = await convertAudioFormat(audioBlob);
-          const text = await transcribeAudio(convertedBlob, 'wav');
-          setTranscriptionResult(text);
-          console.log("转录结果:", text);
-
-          // 使用OpenAI分析文本
-          const result = await analyzeExpenseText(text);
-          console.log("分析结果:", result);
-
-          // 创建支出记录
-          const expense: Expense = {
-            id: crypto.randomUUID(),
-            amount: Number(result.amount || 0),
-            currency: result.currency || getDefaultCurrency(),
-            category: result.category || "其他",
-            date: result.date || new Date().toISOString().split("T")[0],
-            description: result.description || "",
-            createdAt: new Date().toISOString(),
-          };
-
-          if (shouldSkipConfirmation()) {
-            await addExpense(expense);
-          } else {
-            setCurrentExpense(expense);
-            setIsExpenseModalOpen(true);
-          }
-        } catch (error: any) {
-          console.error("处理录音时出错:", error);
-          setError(error.message || "处理录音时出错，请重试");
-        } finally {
-          setProcessingStatus({ isProcessing: false });
-
-          // 关闭所有音轨
-          const tracks = mediaRecorderRef.current?.stream.getTracks();
-          tracks?.forEach((track) => track.stop());
-        }
-      };
-    }
-  };
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Add cleanup function for audio URL
   useEffect(() => {
@@ -291,36 +403,17 @@ export default function Home() {
     };
   }, [audioUrl]);
 
-  // 修改标签切换处理函数
-  const handleTabChange = (tab: "input" | "list" | "stats") => {
-    // 如果点击当前标签，不做任何操作
-    if (tab === activeTab) return;
-
-    // 设置加载状态
-    if (tab === "list") {
-      setTabLoading((prev) => ({ ...prev, list: true }));
-    } else if (tab === "stats") {
-      setTabLoading((prev) => ({ ...prev, stats: true }));
-    }
-
-    // 使用 setTimeout 延迟切换标签，让UI有时间显示加载状态
-    setTimeout(() => {
-      setActiveTab(tab);
-
-      // 在下一个事件循环中重置加载状态
-      setTimeout(() => {
-        setTabLoading({
-          list: false,
-          stats: false,
-        });
-      }, 100);
-    }, 10);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 pb-20 flex flex-col">
       {/* 主要内容区域 */}
       <div className="flex-1 flex flex-col items-center justify-center">
+        {/* Modify tooltip position */}
+        {showTapTooltip && (
+          <div className="fixed bottom-1/4 left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded-lg shadow-lg text-sm animate-fade-out z-50">
+            录音时间太短
+          </div>
+        )}
+
         {/* 录音按钮 */}
         <button
           onTouchStart={startRecording}
@@ -333,9 +426,11 @@ export default function Home() {
                      select-none touch-none
                      [-webkit-touch-callout:none] [-webkit-user-select:none] 
                      [user-select:none] [-webkit-tap-highlight-color:transparent]
-                     ${isRecording
-              ? 'bg-red-500 hover:bg-red-600 active:bg-red-700 animate-pulse'
-              : 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700'}`}
+                     ${
+                       isRecording
+                         ? "bg-red-500 hover:bg-red-600 active:bg-red-700 animate-pulse"
+                         : "bg-blue-500 hover:bg-blue-600 active:bg-blue-700"
+                     }`}
           disabled={processingStatus.isProcessing}
         >
           {/* {processingStatus.isProcessing ? (
@@ -377,17 +472,16 @@ export default function Home() {
         </button>
 
         {/* 录音提示文字 */}
-        <div className="text-gray-600 dark:text-gray-400 mb-8 text-center
+        <div
+          className="text-gray-600 dark:text-gray-400 mb-8 text-center
                       select-none touch-none
                       [-webkit-touch-callout:none] [-webkit-user-select:none] 
-                      [user-select:none] [-webkit-tap-highlight-color:transparent]">
+                      [user-select:none] [-webkit-tap-highlight-color:transparent]"
+        >
           {isRecording ? (
             <span className="animate-pulse">松开结束录音</span>
           ) : (
-            <>
-              <p>按住开始录音</p><br></br>
-              <p>如："今天在costco花了150加币"</p>
-            </>
+            <span>按住开始录音，如"今天在沃尔玛消费100加币"</span>
           )}
         </div>
       </div>
@@ -406,7 +500,9 @@ export default function Home() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg flex flex-col items-center">
             <Spinner size="xl" className="mx-auto" />
-            <p className="mt-4 text-base text-gray-700 dark:text-gray-300">{processingStatus.message || "处理中..."}</p>
+            <p className="mt-4 text-base text-gray-700 dark:text-gray-300">
+              {processingStatus.message || "处理中..."}
+            </p>
           </div>
         </div>
       )}
@@ -431,3 +527,15 @@ export default function Home() {
     </div>
   );
 }
+
+// Add this to your global CSS or as a style tag
+const tooltipAnimation = `
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-fade-out {
+  animation: fadeOut 2s forwards;
+}
+`;

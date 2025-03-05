@@ -110,46 +110,89 @@ export default function ExpenseModal({
             <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-gray-500 dark:text-gray-400">金额:</span>
-                <span className="text-xl font-bold text-gray-900 dark:text-white">
-                  {getCurrencySymbol(
-                    editedExpense.currency || getDefaultCurrency()
-                  )}
-                  {Number(editedExpense.amount || 0).toFixed(2)}
-                </span>
+                <div className="flex items-center">
+                  <select
+                    value={editedExpense.currency || getDefaultCurrency()}
+                    onChange={(e) =>
+                      setEditedExpense({
+                        ...editedExpense,
+                        currency: e.target.value,
+                      })
+                    }
+                    className="mr-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-2 py-1"
+                  >
+                    {currencies.map((currency) => (
+                      <option key={currency.code} value={currency.code}>
+                        {currency.symbol}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    value={editedExpense.amount || ""}
+                    onChange={(e) =>
+                      setEditedExpense({
+                        ...editedExpense,
+                        amount: Number(e.target.value),
+                      })
+                    }
+                    className="w-24 text-right rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
               </div>
 
-              {editedExpense.category && (
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    分类:
-                  </span>
-                  <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                    {editedExpense.category}
-                  </span>
-                </div>
-              )}
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-500 dark:text-gray-400">分类:</span>
+                <select
+                  value={editedExpense.category || "其他"}
+                  onChange={(e) =>
+                    setEditedExpense({
+                      ...editedExpense,
+                      category: e.target.value as ExpenseCategory,
+                    })
+                  }
+                  className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-2 py-1"
+                >
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              {editedExpense.date && (
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    日期:
-                  </span>
-                  <span className="text-gray-900 dark:text-white">
-                    {new Date(editedExpense.date).toLocaleDateString()}
-                  </span>
-                </div>
-              )}
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-500 dark:text-gray-400">日期:</span>
+                <input
+                  type="date"
+                  value={
+                    editedExpense.date || new Date().toISOString().split("T")[0]
+                  }
+                  onChange={(e) =>
+                    setEditedExpense({ ...editedExpense, date: e.target.value })
+                  }
+                  className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-2 py-1"
+                />
+              </div>
 
-              {editedExpense.description && (
-                <div className="mt-2">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    备注:
-                  </span>
-                  <p className="text-gray-900 dark:text-white mt-1">
-                    {editedExpense.description}
-                  </p>
-                </div>
-              )}
+              <div className="mt-2">
+                <span className="text-gray-500 dark:text-gray-400">备注:</span>
+                <input
+                  type="text"
+                  value={editedExpense.description || ""}
+                  onChange={(e) =>
+                    setEditedExpense({
+                      ...editedExpense,
+                      description: e.target.value,
+                    })
+                  }
+                  className="w-full mt-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-2 py-1"
+                  placeholder="添加备注..."
+                />
+              </div>
             </div>
 
             <div className="mt-2 flex items-center">
@@ -168,13 +211,13 @@ export default function ExpenseModal({
               </label>
             </div>
 
-            <div className="mt-6 flex justify-between">
-              <button
+            <div className="mt-6 flex justify-end">
+              {/* <button
                 onClick={() => setShowDetails(true)}
                 className="px-4 py-2 text-blue-600 dark:text-blue-400 hover:underline"
               >
                 修改详情
-              </button>
+              </button> */}
 
               <div className="flex space-x-3">
                 <button
