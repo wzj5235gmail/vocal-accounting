@@ -153,7 +153,7 @@ export default function Home() {
       // 处理录音结果
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
+          type: "audio/aac",
         });
 
         // 检查是否需要跳过确认
@@ -316,11 +316,10 @@ export default function Home() {
                   onMouseUp={stopRecording}
                   onTouchStart={startRecording}
                   onTouchEnd={stopRecording}
-                  className={`w-24 h-24 rounded-full flex items-center justify-center transition-all transform ${
-                    isRecording
+                  className={`w-24 h-24 rounded-full flex items-center justify-center transition-all transform ${isRecording
                       ? "bg-red-500 scale-110"
                       : "bg-blue-500 hover:bg-blue-600"
-                  }`}
+                    }`}
                 >
                   <div className="text-white text-center">
                     <svg
@@ -387,11 +386,10 @@ export default function Home() {
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id as any)}
-              className={`flex-1 py-3 flex flex-col items-center justify-center ${
-                activeTab === tab.id
+              className={`flex-1 py-3 flex flex-col items-center justify-center ${activeTab === tab.id
                   ? "text-blue-500"
                   : "text-gray-600 dark:text-gray-400"
-              }`}
+                }`}
             >
               <span className="text-xl mb-1">{tab.icon}</span>
               <span className="text-xs">{tab.label}</span>
