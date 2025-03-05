@@ -164,7 +164,7 @@ export default function Home() {
           setIsProcessing(true);
           try {
             // 使用Whisper API转录音频
-            const text = await transcribeAudio(audioBlob);
+            const text = await transcribeAudio(audioBlob, "webm");
             console.log("转录结果:", text);
 
             // 使用OpenAI分析文本
@@ -205,7 +205,7 @@ export default function Home() {
 
           try {
             // 使用Whisper API转录音频
-            const text = await transcribeAudio(audioBlob);
+            const text = await transcribeAudio(audioBlob, "webm");
             console.log("转录结果:", text);
 
             // 使用OpenAI分析文本

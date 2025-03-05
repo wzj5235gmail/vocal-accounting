@@ -178,7 +178,7 @@ export default function ExpenseInputSection({
 
     try {
       // 使用Whisper API转录音频
-      const text = await transcribeAudio(blob);
+      const text = await transcribeAudio(blob, "webm");
       setTranscript(text);
 
       // 自动分析文本
