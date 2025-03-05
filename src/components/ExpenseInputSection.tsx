@@ -134,15 +134,14 @@ export default function ExpenseInputSection({
           console.error("转录失败:", error);
           showToast("录音转录失败，请重试", "error");
           setIsProcessing(false);
-          setProcessingStatus(null);
         }
       };
 
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      console.error("无法访问麦克风:", err);
-      setError("无法访问麦克风，请确保已授予麦克风权限");
+      console.error("录音失败:", err);
+      setError("录音失败，请重试");
     }
   };
 
