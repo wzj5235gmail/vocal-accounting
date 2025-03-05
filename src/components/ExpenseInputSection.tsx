@@ -99,12 +99,36 @@ export default function ExpenseInputSection({
     }
   };
 
+  // 检测支持的音频格式
+  const getSupportedMimeType = () => {
+    const types = [
+      "audio/mp3",
+      "audio/wav",
+      "audio/ogg",
+      "audio/webm",
+      "audio/mpeg",
+    ];
+
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+
+    return "audio/webm"; // 默认格式
+  };
+
   // 添加录音功能
   const startRecording = async () => {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = getSupportedMimeType();
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: mimeType,
+      });
+
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -115,8 +139,9 @@ export default function ExpenseInputSection({
       };
 
       mediaRecorder.onstop = async () => {
+        // 修改 Blob 类型为 mp3
         const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
+          type: "audio/mp3",
         });
         setIsRecording(false);
 

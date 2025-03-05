@@ -18,7 +18,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 
     // 创建FormData对象
     const formData = new FormData();
-    formData.append("file", audioBlob, "recording.webm"); // 确保文件名和类型正确
+    formData.append("file", audioBlob, "recording.mp3"); // 修改文件扩展名为 mp3
     formData.append("model", "whisper-1");
     formData.append("language", "zh"); // 中文
 
