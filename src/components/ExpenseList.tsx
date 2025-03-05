@@ -10,6 +10,7 @@ import {
 import { convertToDefaultCurrency } from "@/services/exchange";
 import { getDefaultCurrency } from "@/services/settings";
 import { getUserCategories } from "@/services/categories";
+import { Spinner } from 'flowbite-react';
 
 interface ExpenseListProps {
   expenses: Expense[];
@@ -40,6 +41,7 @@ export default function ExpenseList({
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
   const [categories, setCategories] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // 加载用户自定义分类
   useEffect(() => {
@@ -286,6 +288,11 @@ export default function ExpenseList({
     setPage(1);
   }, [filter, dateRange]);
 
+  // 在组件挂载和数据更新时设置 isLoading 为 false
+  useEffect(() => {
+    setIsLoading(false);
+  }, [expenses]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center md:flex-row md:items-center md:justify-between gap-4">
@@ -303,8 +310,8 @@ export default function ExpenseList({
           <button
             onClick={() => setViewMode("card")}
             className={`p-2 rounded-md ${viewMode === "card"
-                ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
-                : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
+              : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
               }`}
             title="卡片视图"
           >
@@ -326,8 +333,8 @@ export default function ExpenseList({
           <button
             onClick={() => setViewMode("list")}
             className={`p-2 rounded-md ${viewMode === "list"
-                ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
-                : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
+              : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
               }`}
             title="列表视图"
           >
@@ -364,8 +371,8 @@ export default function ExpenseList({
                   key={cat}
                   onClick={() => setFilter(cat === "全部" ? "" : cat)}
                   className={`py-1 px-3 rounded-full text-xs ${(cat === "全部" && !filter) || filter === cat
-                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
-                      : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
+                    : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
                     }`}
                 >
                   {cat}
@@ -408,7 +415,22 @@ export default function ExpenseList({
         </div>
       )}
 
-      {filteredExpenses.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow animate-pulse">
+              <div className="flex justify-between mb-2">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredExpenses.length === 0 ? (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           没有找到符合条件的支出记录
         </div>
@@ -424,22 +446,22 @@ export default function ExpenseList({
                 <div className="flex items-center">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center ${expense.category === "餐饮"
-                        ? "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-200"
-                        : expense.category === "购物"
-                          ? "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-200"
-                          : expense.category === "交通"
-                            ? "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-200"
-                            : expense.category === "住房"
-                              ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-200"
-                              : expense.category === "娱乐"
-                                ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-200"
-                                : expense.category === "医疗"
-                                  ? "bg-pink-100 text-pink-600 dark:bg-pink-900 dark:text-pink-200"
-                                  : expense.category === "教育"
-                                    ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200"
-                                    : expense.category === "旅行"
-                                      ? "bg-teal-100 text-teal-600 dark:bg-teal-900 dark:text-teal-200"
-                                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                      ? "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-200"
+                      : expense.category === "购物"
+                        ? "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-200"
+                        : expense.category === "交通"
+                          ? "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-200"
+                          : expense.category === "住房"
+                            ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-200"
+                            : expense.category === "娱乐"
+                              ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-200"
+                              : expense.category === "医疗"
+                                ? "bg-pink-100 text-pink-600 dark:bg-pink-900 dark:text-pink-200"
+                                : expense.category === "教育"
+                                  ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200"
+                                  : expense.category === "旅行"
+                                    ? "bg-teal-100 text-teal-600 dark:bg-teal-900 dark:text-teal-200"
+                                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                       }`}
                   >
                     {getCategoryIcon(expense.category)}
@@ -552,22 +574,22 @@ export default function ExpenseList({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${expense.category === "餐饮"
-                          ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                          : expense.category === "购物"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            : expense.category === "交通"
-                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                              : expense.category === "住房"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                : expense.category === "娱乐"
-                                  ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                                  : expense.category === "医疗"
-                                    ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
-                                    : expense.category === "教育"
-                                      ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
-                                      : expense.category === "旅行"
-                                        ? "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200"
-                                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                        ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                        : expense.category === "购物"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                          : expense.category === "交通"
+                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                            : expense.category === "住房"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                              : expense.category === "娱乐"
+                                ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                                : expense.category === "医疗"
+                                  ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
+                                  : expense.category === "教育"
+                                    ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
+                                    : expense.category === "旅行"
+                                      ? "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200"
+                                      : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
                         }`}
                     >
                       {expense.category}

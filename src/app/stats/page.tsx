@@ -6,6 +6,7 @@ import StatisticsSection from "@/components/StatisticsSection";
 import { getExpenses } from "@/services/supabase";
 import { Expense } from "@/types/expense";
 import BottomNav from "@/components/BottomNav";
+import { Spinner } from 'flowbite-react';
 
 export default function StatsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -45,8 +46,36 @@ export default function StatsPage() {
         )}
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+          <div className="space-y-4">
+            {/* 总支出卡片占位符 */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 animate-pulse">
+              <div className="flex flex-col items-center">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-3"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+              </div>
+            </div>
+
+            {/* 筛选器占位符 */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 animate-pulse">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-4"></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              </div>
+            </div>
+
+            {/* 图表占位符 */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 animate-pulse">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full mb-4"></div>
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center space-x-2">
+                    <div className="h-3 w-3 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded flex-1"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           <StatisticsSection expenses={expenses} />

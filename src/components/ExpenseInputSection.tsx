@@ -13,7 +13,8 @@ interface ExpenseInputSectionProps {
   onAddExpense: (expense: Expense) => Promise<void>;
   onAudioProcessed?: (blob: Blob, text: string) => Promise<void>;
   isProcessing?: boolean;
-  processingStatus?: string | null;
+  processingStatus?: { isProcessing: boolean; message?: string } | null;
+  setProcessingStatus: (status: { isProcessing: boolean; message?: string }) => void;
 }
 
 // 添加 SpeechRecognition 类型声明
@@ -28,8 +29,10 @@ export default function ExpenseInputSection({
   onAddExpense,
   onAudioProcessed,
   isProcessing = false,
-  processingStatus = null
+  processingStatus = null,
+  setProcessingStatus
 }: ExpenseInputSectionProps) {
+  const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -187,21 +190,14 @@ export default function ExpenseInputSection({
   }, [audioUrl]);
 
   const handleTranscribe = async (blob: Blob) => {
-    setIsProcessing(true);
     setError(null);
-
     try {
-      // 使用Whisper API转录音频
       const text = await transcribeAudio(blob, "webm");
       setTranscript(text);
-
-      // 自动分析文本
       await handleProcessTranscript(text);
     } catch (error: any) {
       console.error("转录音频时出错:", error);
       setError(error.message || "无法转录音频，请重试");
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -212,10 +208,9 @@ export default function ExpenseInputSection({
     try {
       const transcriptToProcess =
         typeof textOrEvent === "string" ? textOrEvent : transcript;
-      if (!transcriptToProcess.trim()) return;
+      if (!transcriptToProcess?.trim()) return;
 
-      setIsProcessing(true);
-      setProcessingStatus("正在分析录音内容...");
+      setProcessingStatus({ isProcessing: true, message: "正在分析录音内容..." });
 
       // 分析文本
       const result = await analyzeExpenseText(transcriptToProcess);
@@ -241,7 +236,7 @@ export default function ExpenseInputSection({
 
       // 如果用户选择了跳过确认，直接保存
       if (shouldSkipConfirmation()) {
-        setProcessingStatus("正在保存支出记录...");
+        setProcessingStatus({ isProcessing: true, message: "正在保存支出记录..." });
         await onAddExpense(expense);
         setTranscript("");
         showToast("支出已成功添加", "success");
@@ -257,8 +252,7 @@ export default function ExpenseInputSection({
       console.error("处理录音失败:", error);
       showToast("处理录音失败，请重试", "error");
     } finally {
-      setIsProcessing(false);
-      setProcessingStatus(null);
+      setProcessingStatus({ isProcessing: false });
     }
   };
 
@@ -267,8 +261,7 @@ export default function ExpenseInputSection({
     if (!amount || isNaN(Number(amount))) return;
 
     try {
-      setIsProcessing(true);
-      setProcessingStatus("正在保存支出记录...");
+      setProcessingStatus({ isProcessing: true, message: "正在保存支出记录..." });
 
       const expense: Expense = {
         id: Date.now().toString(),
@@ -292,8 +285,7 @@ export default function ExpenseInputSection({
       console.error("保存支出失败:", error);
       showToast("保存支出失败，请重试", "error");
     } finally {
-      setIsProcessing(false);
-      setProcessingStatus(null);
+      setProcessingStatus({ isProcessing: false });
     }
   };
 
@@ -369,7 +361,7 @@ export default function ExpenseInputSection({
       {processingStatus && (
         <Alert color="info">
           <Spinner size="sm" className="mr-2" />
-          {processingStatus}
+          {processingStatus.message}
         </Alert>
       )}
 

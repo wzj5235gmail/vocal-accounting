@@ -45,6 +45,8 @@ export default function StatisticsSection({
 
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
+  const [isLoading, setIsLoading] = useState(true);
+
   // 根据时间范围筛选数据
   useEffect(() => {
     let filtered: Expense[] = [];
@@ -264,6 +266,22 @@ export default function StatisticsSection({
     return label;
   };
 
+  const calculateStats = async () => {
+    // ... existing calculateStats code ...
+  };
+
+  // Now place the useEffect here
+  useEffect(() => {
+    const processData = async () => {
+      try {
+        await calculateStats();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    processData();
+  }, [expenses, selectedCurrency, timeRange, groupBy, customRange]);
+
   return (
     <div className="space-y-4">
       {/* 总支出卡片 */}
@@ -413,7 +431,30 @@ export default function StatisticsSection({
 
       {/* 统计图表 */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-        {stats.length > 0 ? (
+        {isLoading ? (
+          <div className="space-y-4">
+            {/* 总计金额占位符 */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 animate-pulse">
+              <div className="flex flex-col items-center">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-3"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+              </div>
+            </div>
+
+            {/* 图表占位符 */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 animate-pulse">
+              <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+              <div className="space-y-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center space-x-2">
+                    <div className="h-3 w-3 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded flex-1"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : stats.length > 0 ? (
           <div className="space-y-4">
             {/* 移动端友好的图表展示 */}
             <div className="overflow-hidden">

@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ExpenseList from "@/components/ExpenseList";
-import { getExpenses } from "@/services/supabase";
+import { getExpenses, updateExpense as updateExpenseInDb, deleteExpense as deleteExpenseFromDb } from "@/services/supabase";
 import { Expense } from "@/types/expense";
 import BottomNav from "@/components/BottomNav";
+import { Spinner } from 'flowbite-react';
 
 export default function ListPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -31,6 +32,26 @@ export default function ListPage() {
     loadExpenses();
   }, []);
 
+  const updateExpense = async (expense: Expense) => {
+    try {
+      const updatedExpense = await updateExpenseInDb(expense);
+      setExpenses(prev => prev.map(item =>
+        item.id === updatedExpense.id ? updatedExpense : item
+      ));
+    } catch (err) {
+      console.error("更新支出记录失败:", err);
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    try {
+      await deleteExpenseFromDb(id);
+      setExpenses(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      console.error("删除支出记录失败:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 pb-20">
       <div className="max-w-4xl mx-auto">
@@ -45,11 +66,23 @@ export default function ListPage() {
         )}
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow animate-pulse">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
+                <div className="space-y-3">
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <ExpenseList expenses={expenses} />
+          <ExpenseList
+            expenses={expenses}
+            onUpdateExpense={updateExpense}
+            onDeleteExpense={deleteExpense}
+          />
         )}
       </div>
 

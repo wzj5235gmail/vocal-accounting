@@ -19,9 +19,10 @@ import {
   getDefaultCurrency,
   shouldSkipConfirmation,
 } from "@/services/settings";
-import SettingsModal from "@/components/SettingsModal";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile } from '@ffmpeg/util';
 
 interface ProcessingStatus {
   isProcessing: boolean;
@@ -65,6 +66,30 @@ export default function Home() {
   const [transcriptionResult, setTranscriptionResult] = useState<string | null>(null);
 
   const router = useRouter();
+
+  // 在组件内添加 FFmpeg 实例
+  const ffmpegRef = useRef<FFmpeg | null>(null);
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+
+  // 修改 FFmpeg 加载函数
+  useEffect(() => {
+    const loadFFmpeg = async () => {
+      try {
+        if (!ffmpegRef.current) {
+          ffmpegRef.current = new FFmpeg();
+        }
+        await ffmpegRef.current.load();
+        setFfmpegLoaded(true);
+      } catch (error) {
+        console.error('Failed to load FFmpeg:', error);
+      }
+    };
+
+    // 只在客户端执行
+    if (typeof window !== 'undefined') {
+      loadFFmpeg();
+    }
+  }, []);
 
   // 从数据库加载数据
   useEffect(() => {
@@ -139,6 +164,31 @@ export default function Home() {
   const mimeType = getMimeType()
   console.log(`mimeType:${mimeType}`);
 
+  // 修改音频处理逻辑
+  const convertAudioFormat = async (audioBlob: Blob): Promise<Blob> => {
+    if (mimeType !== 'audio/mp4' || !ffmpegLoaded || !ffmpegRef.current) {
+      return audioBlob;
+    }
+
+    try {
+      const ffmpeg = ffmpegRef.current;
+      const inputFileName = 'input.m4a';
+      const outputFileName = 'output.wav';
+
+      // 写入输入文件
+      ffmpeg.writeFile(inputFileName, await fetchFile(audioBlob));
+
+      // 转换格式
+      await ffmpeg.exec(['-i', inputFileName, outputFileName]);
+
+      // 读取输出文件
+      const data = await ffmpeg.readFile(outputFileName);
+      return new Blob([data], { type: 'audio/wav' });
+    } catch (error) {
+      console.error('Audio conversion failed:', error);
+      return audioBlob;
+    }
+  };
 
   // 开始录音
   const startRecording = async (e: React.MouseEvent | React.TouchEvent) => {
@@ -186,16 +236,14 @@ export default function Home() {
 
       // 处理录音结果
       mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
-        });
-
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(audioBlob);
         setAudioUrl(url);
 
         setProcessingStatus({ isProcessing: true, message: "正在处理录音..." });
         try {
-          const text = await transcribeAudio(audioBlob, "webm");
+          const convertedBlob = await convertAudioFormat(audioBlob);
+          const text = await transcribeAudio(convertedBlob, 'wav');
           setTranscriptionResult(text);
           console.log("转录结果:", text);
 
@@ -290,42 +338,42 @@ export default function Home() {
               : 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700'}`}
           disabled={processingStatus.isProcessing}
         >
-          {processingStatus.isProcessing ? (
+          {/* {processingStatus.isProcessing ? (
             <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent"></div>
-          ) : (
-            <svg
-              className="w-16 h-16 text-white pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              {isRecording ? (
-                // 录音中图标（波形动画）
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                >
-                  <animate
-                    attributeName="opacity"
-                    values="1;0.5;1"
-                    dur="2s"
-                    repeatCount="indefinite"
-                  />
-                </path>
-              ) : (
-                // 麦克风图标
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+          ) : ( */}
+          <svg
+            className="w-16 h-16 text-white pointer-events-none"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {isRecording ? (
+              // 录音中图标（波形动画）
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+              >
+                <animate
+                  attributeName="opacity"
+                  values="1;0.5;1"
+                  dur="2s"
+                  repeatCount="indefinite"
                 />
-              )}
-            </svg>
-          )}
+              </path>
+            ) : (
+              // 麦克风图标
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+              />
+            )}
+          </svg>
+          {/* )} */}
         </button>
 
         {/* 录音提示文字 */}
@@ -338,7 +386,7 @@ export default function Home() {
           ) : (
             <>
               <p>按住开始录音</p><br></br>
-              <p>如：“今天在costco花了150加币”</p>
+              <p>如："今天在costco花了150加币"</p>
             </>
           )}
         </div>
@@ -356,9 +404,9 @@ export default function Home() {
       {/* 加载指示器 */}
       {processingStatus.isProcessing && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-4 rounded-lg">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <p className="mt-2 text-sm text-gray-600">{processingStatus.message || "处理中..."}</p>
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg flex flex-col items-center">
+            <Spinner size="xl" className="mx-auto" />
+            <p className="mt-4 text-base text-gray-700 dark:text-gray-300">{processingStatus.message || "处理中..."}</p>
           </div>
         </div>
       )}
@@ -373,6 +421,13 @@ export default function Home() {
       />
 
       <BottomNav />
+
+      {/* <ExpenseInputSection
+        onAddExpense={addExpense}
+        isProcessing={processingStatus.isProcessing}
+        processingStatus={processingStatus}
+        setProcessingStatus={setProcessingStatus}
+      /> */}
     </div>
   );
 }
