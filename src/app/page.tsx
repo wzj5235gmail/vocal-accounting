@@ -153,7 +153,7 @@ export default function Home() {
       // 处理录音结果
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/mp3",
+          type: "audio/mp4",
         });
 
         // 检查是否需要跳过确认
