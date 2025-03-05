@@ -164,7 +164,7 @@ export default function Home() {
           setIsProcessing(true);
           try {
             // 使用Whisper API转录音频
-            const text = await transcribeAudio(audioBlob, "webm");
+            const text = await transcribeAudio(audioBlob, "aac");
             console.log("转录结果:", text);
 
             // 使用OpenAI分析文本
@@ -205,7 +205,7 @@ export default function Home() {
 
           try {
             // 使用Whisper API转录音频
-            const text = await transcribeAudio(audioBlob, "webm");
+            const text = await transcribeAudio(audioBlob, "aac");
             console.log("转录结果:", text);
 
             // 使用OpenAI分析文本
@@ -317,8 +317,8 @@ export default function Home() {
                   onTouchStart={startRecording}
                   onTouchEnd={stopRecording}
                   className={`w-24 h-24 rounded-full flex items-center justify-center transition-all transform ${isRecording
-                      ? "bg-red-500 scale-110"
-                      : "bg-blue-500 hover:bg-blue-600"
+                    ? "bg-red-500 scale-110"
+                    : "bg-blue-500 hover:bg-blue-600"
                     }`}
                 >
                   <div className="text-white text-center">
@@ -387,8 +387,8 @@ export default function Home() {
               key={tab.id}
               onClick={() => handleTabChange(tab.id as any)}
               className={`flex-1 py-3 flex flex-col items-center justify-center ${activeTab === tab.id
-                  ? "text-blue-500"
-                  : "text-gray-600 dark:text-gray-400"
+                ? "text-blue-500"
+                : "text-gray-600 dark:text-gray-400"
                 }`}
             >
               <span className="text-xl mb-1">{tab.icon}</span>
