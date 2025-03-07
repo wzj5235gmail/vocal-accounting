@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 interface ProcessingStatus {
   isProcessing: boolean;
@@ -74,6 +75,15 @@ export default function Home() {
   // 在组件内添加 FFmpeg 实例
   const ffmpegRef = useRef<FFmpeg | null>(null);
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+
+  const [hasUsedBefore, setHasUsedBefore] = useLocalStorage('has-used-app', false);
+  const [showHelpTip, setShowHelpTip] = useState(!hasUsedBefore);
+
+  // 在第一次录音完成后标记用户已使用过
+  const handleFirstRecordingComplete = () => {
+    setHasUsedBefore(true);
+    setShowHelpTip(false);
+  };
 
   // 修改 FFmpeg 加载函数
   useEffect(() => {
@@ -406,11 +416,22 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 pb-20 flex flex-col">
       {/* 主要内容区域 */}
-      <div className="flex-1 flex flex-col items-center justify-center">
-        {/* Modify tooltip position */}
-        {showTapTooltip && (
-          <div className="fixed bottom-1/4 left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded-lg shadow-lg text-sm animate-fade-out z-50">
-            录音时间太短
+      <div className="flex-1 flex flex-col items-center justify-center relative">
+        {/* 首次使用提示 */}
+        {showHelpTip && (
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 -translate-y-full 
+                         bg-blue-50 dark:bg-blue-900 p-4 rounded-lg shadow-lg max-w-xs 
+                         text-center animate-bounce-gentle">
+            <p className="text-blue-800 dark:text-blue-200 text-sm">
+              👋 欢迎使用语音记账！
+              <br />
+              按住下方按钮开始录音
+            </p>
+            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2">
+              <svg className="w-4 h-4 text-blue-50 dark:text-blue-900" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 16L6 10H18L12 16Z" />
+              </svg>
+            </div>
           </div>
         )}
 
@@ -423,14 +444,9 @@ export default function Home() {
           onMouseLeave={stopRecording}
           className={`w-32 h-32 rounded-full flex items-center justify-center shadow-lg 
                      transition-all duration-200 transform hover:scale-105 active:scale-95 mb-20
-                     select-none touch-none
-                     [-webkit-touch-callout:none] [-webkit-user-select:none] 
-                     [user-select:none] [-webkit-tap-highlight-color:transparent]
-                     ${
-                       isRecording
-                         ? "bg-red-500 hover:bg-red-600 active:bg-red-700 animate-pulse"
-                         : "bg-blue-500 hover:bg-blue-600 active:bg-blue-700"
-                     }`}
+                     select-none touch-none relative
+                     ${isRecording ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"}
+                     ${showHelpTip ? "animate-pulse-gentle" : ""}`}
           disabled={processingStatus.isProcessing}
         >
           {/* {processingStatus.isProcessing ? (
@@ -472,18 +488,31 @@ export default function Home() {
         </button>
 
         {/* 录音提示文字 */}
-        <div
-          className="text-gray-600 dark:text-gray-400 mb-8 text-center
-                      select-none touch-none
-                      [-webkit-touch-callout:none] [-webkit-user-select:none] 
-                      [user-select:none] [-webkit-tap-highlight-color:transparent]"
-        >
-          {isRecording ? (
-            <span className="animate-pulse">松开结束录音</span>
-          ) : (
-            <span>按住开始录音，如"今天在沃尔玛消费100加币"</span>
+        <div className="text-gray-600 dark:text-gray-400 mb-8 text-center space-y-2">
+          <p>
+            {isRecording ? (
+              <span className="animate-pulse">松开结束录音</span>
+            ) : (
+              <span>按住开始录音</span>
+            )}
+          </p>
+          {!isRecording && !processingStatus.isProcessing && (
+            <p className="text-sm text-gray-500 dark:text-gray-500">
+              试试说："今天在沃尔玛消费100加币"
+            </p>
           )}
         </div>
+
+        {/* 底部功能提示 */}
+        {showHelpTip && (
+          <div className="fixed bottom-20 left-4 right-4 text-center">
+            <div className="inline-block bg-gray-50 dark:bg-gray-800 
+                          text-gray-600 dark:text-gray-400 text-xs px-4 py-2 
+                          rounded-full shadow-sm border border-gray-200 dark:border-gray-700">
+              在底部导航栏查看记录和统计 👇
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 错误提示 */}
@@ -537,5 +566,26 @@ const tooltipAnimation = `
 }
 .animate-fade-out {
   animation: fadeOut 2s forwards;
+}
+`;
+
+// 添加到全局样式
+const newAnimations = `
+@keyframes bounce-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-gentle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s infinite;
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 2s infinite;
 }
 `;
